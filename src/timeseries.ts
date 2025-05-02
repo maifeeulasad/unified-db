@@ -51,6 +51,83 @@ export class TimeSeriesDB {
     return this.collection.find(filter).sort(sort).toArray();
   }
 
+  async aggregateByTimeBucket({
+    interval,
+    valueField,
+    operation = "avg",
+    match = {},
+  }: {
+    interval: "seconds" | "minutes" | "hours";
+    valueField: string;
+    operation?: "avg" | "min" | "max" | "sum";
+    match?: Document;
+  }) {
+    const mappingForMongoTimeInternal = {
+      "hours": "hour",
+      "minutes": "minute",
+      "days": "day",
+    };
+    const intervalForAggregation = mappingForMongoTimeInternal[interval] || interval;
+    const groupId = {
+      $dateTrunc: {
+        date: `$${this.options.timeField}`,
+        unit: intervalForAggregation,
+      },
+    };
+
+    const aggregationStage = {
+      $group: {
+        _id: groupId,
+        value: {
+          [`$${operation}`]: `$${valueField}`,
+        },
+      },
+    };
+
+    const pipeline = [{ $match: match }, aggregationStage, { $sort: { _id: 1 } }];
+
+    return this.collection.aggregate(pipeline).toArray();
+  }
+
+  async downsample({
+    interval,
+    valueField,
+    operation = "avg",
+    targetCollection,
+    match = {},
+  }: {
+    interval: "seconds" | "minutes" | "hours";
+    valueField: string;
+    operation?: "avg" | "min" | "max" | "sum";
+    targetCollection: string;
+    match?: Document;
+  }) {
+    const results = await this.aggregateByTimeBucket({ interval, valueField, operation, match });
+
+    const target = this.db.collection(targetCollection);
+
+    const exists = await this.db.listCollections({ name: targetCollection }).next();
+    if (!exists) {
+      await this.db.createCollection(targetCollection, {
+        timeseries: {
+          timeField: "timestamp",
+          granularity: interval === "minutes" ? "seconds" : interval,
+        },
+      });
+    }
+
+    const docs = results.map((r) => ({
+      timestamp: r._id,
+      value: r.value,
+    }));
+
+    if (docs.length > 0) {
+      await target.insertMany(docs);
+    }
+
+    return docs;
+  }
+
   async close(): Promise<void> {
     await this.client.close();
   }
