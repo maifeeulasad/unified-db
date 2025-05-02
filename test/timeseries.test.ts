@@ -2,14 +2,14 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { TimeSeriesDB, TimeSeriesOptions } from '../src/timeseries';
 import { MongoClient } from 'mongodb';
 
-const testOptions = {
+const testOptions: TimeSeriesOptions = {
     dbName: 'local-unified-db',
     collectionName: 'local-unified-db-collection',
     uri: `mongodb://${'mongodbusername'}:${'mongodbpassword'}@localhost:27017`,
     timeField: 'timestamp',
     metaField: 'sensor',
     granularity: 'seconds',
-} as TimeSeriesOptions;
+};
 
 let db: TimeSeriesDB;
 let client: MongoClient;
