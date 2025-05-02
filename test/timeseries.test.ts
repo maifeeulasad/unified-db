@@ -3,8 +3,8 @@ import { TimeSeriesDB, TimeSeriesOptions } from '../src/timeseries';
 import { MongoClient } from 'mongodb';
 
 const testOptions = {
-    dbName: 'local-search',
-    collectionName: 'local-search-collection',
+    dbName: 'local-unified-db',
+    collectionName: 'local-unified-db-collection',
     uri: `mongodb://${'mongodbusername'}:${'mongodbpassword'}@localhost:27017`,
     timeField: 'timestamp',
     metaField: 'sensor',
