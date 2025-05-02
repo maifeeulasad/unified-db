@@ -81,4 +81,61 @@ describe('TimeSeriesDB', () => {
         const result = await db.query({ sensor: 'nonexistentSensor' });
         expect(result).toHaveLength(0);
     });
+
+    it('should aggregate data by time bucket with average operation', async () => {
+        const testData = [
+            { timestamp: new Date('2025-05-01T09:00:00Z'), value: 10, sensor: 'sensorD' },
+            { timestamp: new Date('2025-05-01T09:30:00Z'), value: 20, sensor: 'sensorD' },
+            { timestamp: new Date('2025-05-01T10:00:00Z'), value: 30, sensor: 'sensorD' },
+        ];
+    
+        await db.insert(testData);
+    
+        const result = await db.aggregateByTimeBucket({
+            interval: 'hours',
+            valueField: 'value',
+            operation: 'avg',
+            match: { sensor: 'sensorD' },
+        });
+    
+        expect(result).toHaveLength(2);
+        expect(result[0]._id).toEqual(new Date('2025-05-01T09:00:00Z'));
+        expect(result[0].value).toBe(15); // Average of 10 and 20
+        expect(result[1]._id).toEqual(new Date('2025-05-01T10:00:00Z'));
+        expect(result[1].value).toBe(30);
+    });
+    
+    it('should downsample data into a target collection', async () => {
+        const testData = [
+            { timestamp: new Date('2025-05-01T09:00:00Z'), value: 10, sensor: 'sensorE' },
+            { timestamp: new Date('2025-05-01T09:30:00Z'), value: 20, sensor: 'sensorE' },
+            { timestamp: new Date('2025-05-01T10:00:00Z'), value: 30, sensor: 'sensorE' },
+        ];
+    
+        await db.insert(testData);
+    
+        const downsampledData = await db.downsample({
+            interval: 'hours',
+            valueField: 'value',
+            operation: 'avg',
+            targetCollection: 'sensorE_hourly_avg',
+            match: { sensor: 'sensorE' },
+        });
+    
+        const targetCollection = client.db(testOptions.dbName).collection('sensorE_hourly_avg');
+        const storedData = await targetCollection.find().toArray();
+    
+        expect(downsampledData).toHaveLength(2);
+        expect(downsampledData[0].timestamp).toEqual(new Date('2025-05-01T09:00:00Z'));
+        expect(downsampledData[0].value).toBe(15); // Average of 10 and 20
+        expect(downsampledData[1].timestamp).toEqual(new Date('2025-05-01T10:00:00Z'));
+        expect(downsampledData[1].value).toBe(30);
+    
+        expect(storedData).toHaveLength(2);
+        expect(storedData[0].timestamp).toEqual(new Date('2025-05-01T09:00:00Z'));
+        expect(storedData[0].value).toBe(15);
+        expect(storedData[1].timestamp).toEqual(new Date('2025-05-01T10:00:00Z'));
+        expect(storedData[1].value).toBe(30);
+    });
+    
 });
