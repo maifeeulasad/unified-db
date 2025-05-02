@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "vitest"
+    "test:watch": "vitest",
+    "test:coverage": "vitest --coverage --environment node --run",
+    "test:report": "vitest run --reporter=html",
+    "test:report:coverage": "vitest run --coverage --environment node --reporter=html"
   },
   "keywords": [],
   "author": "",
