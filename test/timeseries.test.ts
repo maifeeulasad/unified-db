@@ -1,0 +1,84 @@
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { TimeSeriesDB, TimeSeriesOptions } from '../src/timeseries';
+import { MongoClient } from 'mongodb';
+
+const testOptions = {
+    dbName: 'local-search',
+    collectionName: 'local-search-collection',
+    uri: `mongodb://${'mongodbusername'}:${'mongodbpassword'}@localhost:27017`,
+    timeField: 'timestamp',
+    metaField: 'sensor',
+    granularity: 'seconds',
+} as TimeSeriesOptions;
+
+let db: TimeSeriesDB;
+let client: MongoClient;
+
+describe('TimeSeriesDB', () => {
+    beforeAll(async () => {
+        db = new TimeSeriesDB(testOptions);
+        await db.connect();
+        client = new MongoClient(testOptions.uri);
+        await client.connect();
+    });
+
+    afterAll(async () => {
+        await db.close();
+        const testDb = client.db(testOptions.dbName);
+        await testDb.dropDatabase();
+        await client.close();
+    });
+
+    it('should create a timeseries collection if it does not exist', async () => {
+        const collections = await client.db(testOptions.dbName).listCollections().toArray();
+        const collectionNames = collections.map((col) => col.name);
+        expect(collectionNames).toContain(testOptions.collectionName);
+    });
+
+    it('should insert a single document into the timeseries collection', async () => {
+        const testData = {
+            timestamp: new Date(),
+            value: 25.3,
+            sensor: 'sensorA',
+        };
+
+        await db.insert(testData);
+
+        const result = await db.query({ sensor: 'sensorA' });
+        expect(result).toHaveLength(1);
+        expect(result[0].value).toBe(25.3);
+    });
+
+    it('should insert multiple documents into the timeseries collection', async () => {
+        const testData = [
+            { timestamp: new Date(), value: 20.1, sensor: 'sensorB' },
+            { timestamp: new Date(), value: 21.5, sensor: 'sensorB' },
+        ];
+
+        await db.insert(testData);
+
+        const result = await db.query({ sensor: 'sensorB' });
+        expect(result).toHaveLength(2);
+        expect(result[0].value).toBe(20.1);
+        expect(result[1].value).toBe(21.5);
+    });
+
+    it('should query documents with a filter and sort them by the timeField', async () => {
+        const testData = [
+            { timestamp: new Date('2025-05-01T10:00:00Z'), value: 18.5, sensor: 'sensorC' },
+            { timestamp: new Date('2025-05-01T09:00:00Z'), value: 19.0, sensor: 'sensorC' },
+        ];
+
+        await db.insert(testData);
+
+        const result = await db.query({ sensor: 'sensorC' });
+        expect(result).toHaveLength(2);
+        expect(result[0].timestamp).toEqual(new Date('2025-05-01T09:00:00Z'));
+        expect(result[1].timestamp).toEqual(new Date('2025-05-01T10:00:00Z'));
+    });
+
+    it('should handle empty query results gracefully', async () => {
+        const result = await db.query({ sensor: 'nonexistentSensor' });
+        expect(result).toHaveLength(0);
+    });
+});
