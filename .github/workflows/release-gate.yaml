@@ -1,0 +1,17 @@
+name: Release Gatekeeper
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  check-tests:
+    name: Ensure Test Workflow Succeeded
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call test workflow using repository_dispatch
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.REPO_GH }}
+          event-type: trigger-publish # trigger-publish is the event type for the test workflow

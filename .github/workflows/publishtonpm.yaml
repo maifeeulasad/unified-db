@@ -1,11 +1,14 @@
 name: Publish to NPM
 
 on:
-  release:
-    types: [created]
+  workflow_run:
+    workflows: ["Release Gatekeeper"]
+    types:
+      - completed
 
 jobs:
   publish:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     strategy:

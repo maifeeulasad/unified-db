@@ -1,6 +1,7 @@
 name: Run Tests with Coverage and Reports
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - main
