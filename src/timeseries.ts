@@ -11,6 +11,8 @@ export interface TimeSeriesOptions {
 
 export class TimeSeriesDB {
   private client: MongoClient;
+  // todo: fix this type
+  // @ts-ignore
   private db: Db;
   private collection!: Collection;
 
@@ -67,6 +69,8 @@ export class TimeSeriesDB {
       "minutes": "minute",
       "days": "day",
     };
+    // todo: fix this type
+    // @ts-ignore
     const intervalForAggregation = mappingForMongoTimeInternal[interval] || interval;
     const groupId = {
       $dateTrunc: {
